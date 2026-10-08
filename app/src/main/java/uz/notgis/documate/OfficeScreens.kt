@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 
 package uz.notgis.documate
 
@@ -7,6 +7,7 @@ import android.content.Intent
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -74,7 +75,7 @@ fun OfficeScreen(vm: AppViewModel, doc: DocFile, onBack: () -> Unit) {
     val t = stringsFor(st.lang)
     var scale by remember { mutableFloatStateOf(1f) }
 
-    ViewerFrame(title = doc.name, onBack = onBack, actions = {
+    ViewerFrame(title = doc.name, onBack = onBack, backDesc = t.back, actions = {
         TextButton(onClick = { scale = maxOf(0.7f, scale - 0.2f) }) { Text("A-", fontSize = 13.sp) }
         TextButton(onClick = { scale = minOf(2.5f, scale + 0.2f) }) { Text("A+", fontSize = 15.sp) }
         OutlinedButton(onClick = { openExternal(ctx, doc, t.noApp) }) { Text(t.ext) }
@@ -193,6 +194,13 @@ private fun SheetTableView(doc: DocFile, t: L, scale: Float) {
     var q by remember { mutableStateOf("") }
     val hScroll = rememberScrollState()
     val border = MaterialTheme.colorScheme.outline
+    // Qidiruv bo'yicha filtrlangan satrlar — LazyScope ichida remember() mumkin emas
+    val filtered = remember(d, q) {
+        d.sheets.associate { sh ->
+            sh.name to if (q.isBlank()) sh.rows.take(300)
+            else sh.rows.filter { r -> r.any { it.contains(q, ignoreCase = true) } }.take(300)
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         SearchBar(t, q) { q = it }
         LazyColumn(Modifier.fillMaxSize()) {
@@ -205,11 +213,8 @@ private fun SheetTableView(doc: DocFile, t: L, scale: Float) {
                         modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
                     )
                 }
-                val rows = remember(sh, q) {
-                    val all = if (q.isBlank()) sh.rows else sh.rows.filter { r -> r.any { it.contains(q, ignoreCase = true) } }
-                    all.take(300)
-                }
-                val cols = remember(rows) { (rows.maxOfOrNull { it.size } ?: 0).coerceAtMost(30) }
+                val rows = filtered[sh.name] ?: emptyList()
+                val cols = (rows.maxOfOrNull { it.size } ?: 0).coerceAtMost(30)
                 if (cols == 0) return@forEach
                 stickyHeader(key = sh.name + "_h") {
                     Row(

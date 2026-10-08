@@ -29,6 +29,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,7 @@ fun ViewerFrame(
     title: String,
     onBack: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
+    backDesc: String? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     Scaffold(
@@ -48,7 +50,7 @@ fun ViewerFrame(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Orqaga")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = backDesc)
                     }
                 },
                 actions = actions,
@@ -61,7 +63,7 @@ fun ViewerFrame(
 @Composable
 fun TextScreen(vm: AppViewModel, doc: DocFile, onBack: () -> Unit) {
     val ctx = LocalContext.current
-    val st by androidx.lifecycle.compose.collectAsStateWithLifecycle(vm.settings)
+    val st by collectAsStateWithLifecycle(vm.settings)
     val t = stringsFor(st.lang)
     val result by produceState<Result<List<String>>?>(null, doc.uri) {
         value = withContext(Dispatchers.IO) {
@@ -73,7 +75,7 @@ fun TextScreen(vm: AppViewModel, doc: DocFile, onBack: () -> Unit) {
         }
     }
 
-    ViewerFrame(title = doc.name, onBack = onBack) { pad ->
+    ViewerFrame(title = doc.name, onBack = onBack, backDesc = t.back) { pad ->
         Box(
             Modifier
                 .padding(pad)

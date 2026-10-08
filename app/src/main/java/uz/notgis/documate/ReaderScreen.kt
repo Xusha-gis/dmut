@@ -303,6 +303,7 @@ fun ReaderScreen(vm: AppViewModel, doc: DocFile, onBack: () -> Unit) {
             vm.saveLastPage(doc.uri.toString(), listState.firstVisibleItemIndex)
             onBack()
         },
+        backDesc = t.back,
         actions = {
             if (!needPassword && session != null) {
                 TextButton(onClick = { searchOpen = !searchOpen }) { Text(if (searchOpen) "✕" else "🔍") }
