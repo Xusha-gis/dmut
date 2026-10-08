@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -32,7 +33,9 @@ enum class Sort(val label: String) {
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val ctx = app.applicationContext
 
+    // Sozlamalar fayli buzilgan bo'lsa ham ilova ochiladi (standart qiymatlar bilan)
     val settings: StateFlow<UserSettings> = ctx.dataStore.data
+        .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
         .map { p ->
             UserSettings(
                 tree = p[Keys.TREE],
@@ -169,8 +172,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun getLastPage(docUri: String): Int {
         var v = 0
         try {
-            ctx.dataStore.data.collect { p -> v = p[lastPageKey(docUri)] ?: 0; throw Found() }
-        } catch (e: Found) { }
+            ctx.dataStore.data
+                .catch { /* buzilgan bo'lsa 0 qaytadi */ }
+                .collect { p -> v = p[lastPageKey(docUri)] ?: 0; throw Found() }
+        } catch (e: Found) { } catch (e: Exception) { }
         return v
     }
 

@@ -48,15 +48,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CrashReporter.install(this)
+        // Kompozitsiyadan OLDIN sinxron o'qiladi — App() ichida crash bo'lsa ham ko'rinadi
+        val bootCrash = CrashReporter.read(this)
         enableEdgeToEdge()
-        setContent { App(vm) }
+        setContent { App(vm, bootCrash) }
     }
 }
 
 private enum class Tab { HOME, TOOLS, FAVS, SETTINGS }
 
 @Composable
-private fun App(vm: AppViewModel) {
+private fun App(vm: AppViewModel, bootCrash: String?) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val open by vm.openDoc.collectAsStateWithLifecycle()
     val dark = when (settings.theme) {
@@ -74,9 +76,7 @@ private fun App(vm: AppViewModel) {
 
     DocuMateTheme(dark) {
         val ctx = LocalContext.current
-        // MUHIM: sinxron o'qish. LaunchedEffect bilan bo'lmaydi — crash kompozitsiya
-        // paytida yuz bersa, effect ishlamay qoladi va hisobot ekrani chiqmaydi.
-        var crash by remember { mutableStateOf(CrashReporter.read(ctx)) }
+        var crash by remember { mutableStateOf(bootCrash) }
         val crashReport = crash
         if (crashReport != null) {
             CrashScreen(crashReport) {
