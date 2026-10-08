@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -235,13 +236,14 @@ fun HomeScreen(
     val sort by vm.sort.collectAsStateWithLifecycle()
     val filter by vm.typeFilter.collectAsStateWithLifecycle()
     val t = stringsFor(st.lang)
+    // Oddiy funksiya chaqiruvi (StateFlow emas) — 0.2.0 dagi kabi sodda launch yo'li
+    val allOk = remember(st.loaded) { vm.hasAllAccess() }
 
     Column(
         Modifier
             .fillMaxSize()
             .padding(padding)
     ) {
-        val allOk by vm.allAccess.collectAsStateWithLifecycle()
         ScreenTitle(t.docs) {
             IconButton(onClick = vm::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Yangilash") }
         }

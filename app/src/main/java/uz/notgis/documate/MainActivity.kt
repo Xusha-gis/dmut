@@ -25,21 +25,16 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 class MainActivity : ComponentActivity() {
@@ -109,16 +104,6 @@ private fun MainScaffold(vm: AppViewModel) {
         if (uri != null) vm.setTree(uri)
     }
     val launchPicker = { pickFolder.launch(null) }
-
-    // Sozlamalardan qaytganda (ruxsat berilgach) ro'yxatni yangilash
-    val owner = LocalLifecycleOwner.current
-    DisposableEffect(owner) {
-        val obs = LifecycleEventObserver { _, e ->
-            if (e == Lifecycle.Event.ON_RESUME) vm.refresh()
-        }
-        owner.lifecycle.addObserver(obs)
-        onDispose { owner.lifecycle.removeObserver(obs) }
-    }
 
     data class TabItem(val id: Tab, val label: String, val icon: ImageVector)
     val tabs = listOf(

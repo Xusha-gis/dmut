@@ -98,7 +98,7 @@ fun SettingsScreen(vm: AppViewModel, padding: PaddingValues, onPickFolder: () ->
     val st by vm.settings.collectAsStateWithLifecycle()
     val t = stringsFor(st.lang)
     val folder = st.tree?.let { Uri.parse(it).lastPathSegment ?: it } ?: t.notChosen
-    val allOk by vm.allAccess.collectAsStateWithLifecycle()
+    val allOk = remember(st.loaded) { vm.hasAllAccess() }
 
     Column(
         Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),

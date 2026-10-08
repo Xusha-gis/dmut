@@ -96,12 +96,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { refreshAuto() }
     }
 
-    private val _allAccess = MutableStateFlow(false)
-    val allAccess: StateFlow<Boolean> = _allAccess.asStateFlow()
-
     private suspend fun refreshAuto() {
-        _allAccess.value = hasAllAccess()
-        if (_allAccess.value) {
+        if (hasAllAccess()) {
             loadAll()
         } else {
             val tree = settings.value.tree
