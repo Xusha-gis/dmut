@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "uz.notgis.documate"
-        minSdk = 24
+        minSdk = 26 // POI java.time API 26+ da native (desugaring siz)
         targetSdk = 35
         versionCode = 12
         versionName = "0.7.0"
@@ -56,8 +56,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        // POI eski formatlar uchun (minSdk 24 da java.time va b. uchun)
-        isCoreLibraryDesugarEnabled = true
     }
     kotlinOptions {
         jvmTarget = "17"
@@ -105,7 +103,6 @@ dependencies {
     // Yangi formatlar (docx/xlsx) WebView (mammoth/SheetJS) + yengil parserda qoladi.
     implementation("org.apache.poi:poi:5.2.5")
     implementation("org.apache.poi:poi-scratchpad:5.2.5")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
     testImplementation("junit:junit:4.13.2")
 }
