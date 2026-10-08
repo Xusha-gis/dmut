@@ -36,6 +36,19 @@ jobs:
       - name: Debug APK yig'ish
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
+      - name: Debug APK ni imzolash (v1+v2) va tekshirish
+        run: |
+          BT="$ANDROID_SDK_ROOT/build-tools/35.0.0"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/debug.jks" -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10950 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+          "$BT/apksigner" sign --ks "$RUNNER_TEMP/debug.jks" \
+            --ks-pass:android --key-pass:android \
+            --v1-signing-enabled true --v2-signing-enabled true \
+            app/build/outputs/apk/debug/app-debug.apk
+          "$BT/apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk
+
       - name: Debug APK ni yuklash
         uses: actions/upload-artifact@v4
         with:

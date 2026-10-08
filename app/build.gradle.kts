@@ -12,8 +12,8 @@ android {
         applicationId = "uz.notgis.documate"
         minSdk = 24
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.3.3"
+        versionCode = 7
+        versionName = "0.3.4"
     }
 
     // Imzo ma'lumotlari faqat muhit o'zgaruvchilarida bo'lsa ishlatiladi (GitHub Secrets).
