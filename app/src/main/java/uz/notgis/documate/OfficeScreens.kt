@@ -53,16 +53,16 @@ fun OfficeScreen(doc: DocFile, onBack: () -> Unit) {
         value = withContext(Dispatchers.IO) { OfficeXml.read(ctx, doc.uri, doc.name) }
     }
     var loaded by remember { mutableStateOf(false) }
-    // data null bo'lsa-yu yuklanish tugagan bo'lsa -> eski format yoki xato
-    val done = remember(data) { data != null }
+    // produceState delegati smart-cast bo'lmaydi — lokal val ga olamiz
+    val d = data
 
     ViewerFrame(title = doc.name, onBack = onBack, actions = {
         OutlinedButton(onClick = { openExternal(ctx, doc) }) { Text("Tashqi") }
     }) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
-            if (data == null) {
-                // hali yuklanmoqda yoki fallback
-                androidx.compose.runtime.LaunchedEffect(data) {
+            if (d == null) {
+                // hali yuklanmoqda yoki fallback (eski format / xato)
+                androidx.compose.runtime.LaunchedEffect(Unit) {
                     kotlinx.coroutines.delay(2500)
                     loaded = true
                 }
@@ -75,7 +75,7 @@ fun OfficeScreen(doc: DocFile, onBack: () -> Unit) {
                     LegacyFallback(doc, onBack)
                 }
             } else {
-                when (val d = data) {
+                when (d) {
                     is OfficeXml.Result.Text -> DocTextView(d)
                     is OfficeXml.Result.Slides -> SlidesView(d)
                     is OfficeXml.Result.Sheet -> SheetsView(d)
