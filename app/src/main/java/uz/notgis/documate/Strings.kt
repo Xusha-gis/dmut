@@ -90,6 +90,7 @@ data class L(
     val aboutBody: String,
     val errFolder: String,
     val errFiles: String,
+    val textView: String,
 )
 
 val Uz = L(
@@ -137,6 +138,7 @@ val Uz = L(
     aboutBody = "DocuMate — offline hujjat o'quvchi. PDF parol/qidiruv/eslash, docx/xlsx/pptx ichki ko'ruvchi, kamera skaneri, PDF birlashtirish, rezyume shabloni, 3 til.",
     errFolder = "Papkani o'qib bo'lmadi. Uni qaytadan tanlang.",
     errFiles = "Fayllarni o'qib bo'lmadi.",
+    textView = "Matn",
 )
 
 val Ru = L(
@@ -184,6 +186,7 @@ val Ru = L(
     aboutBody = "DocuMate — офлайн-читалка документов. Пароль/поиск/продолжение PDF, просмотр docx/xlsx/pptx, сканер, объединение PDF, шаблон резюме, 3 языка.",
     errFolder = "Не удалось прочитать папку. Выберите её заново.",
     errFiles = "Не удалось прочитать файлы.",
+    textView = "Текст",
 )
 
 val En = L(
@@ -231,6 +234,7 @@ val En = L(
     aboutBody = "DocuMate — offline document reader. Password/search/resume for PDF, docx/xlsx/pptx viewer, scanner, PDF merge, CV template, 3 languages.",
     errFolder = "Could not read the folder. Please choose it again.",
     errFiles = "Could not read the files.",
+    textView = "Text",
 )
 
 fun stringsFor(lang: String): L = when (lang) {

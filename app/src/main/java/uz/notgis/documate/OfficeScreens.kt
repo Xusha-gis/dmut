@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -74,16 +73,33 @@ fun OfficeScreen(vm: AppViewModel, doc: DocFile, onBack: () -> Unit) {
     val st by vm.settings.collectAsStateWithLifecycle()
     val t = stringsFor(st.lang)
     var scale by remember { mutableFloatStateOf(1f) }
+    // true = haqiqiy (WebView) ko'rinish, false = matn ko'rinishi
+    var webMode by remember(doc.uri) { mutableStateOf(true) }
+    val ext = doc.name.substringAfterLast('.', "").lowercase()
+    val webCapable = (ext == "docx" || ext == "xlsx") && doc.size in 1..OfficeWeb.MAX_WEB_BYTES
 
     ViewerFrame(title = doc.name, onBack = onBack, backDesc = t.back, actions = {
-        TextButton(onClick = { scale = maxOf(0.7f, scale - 0.2f) }) { Text("A-", fontSize = 13.sp) }
-        TextButton(onClick = { scale = minOf(2.5f, scale + 0.2f) }) { Text("A+", fontSize = 15.sp) }
+        if (webCapable && webMode) {
+            TextButton(onClick = { webMode = false }) { Text(t.textView, fontSize = 13.sp) }
+        }
+        if (!webMode || doc.type == FType.PPT) {
+            TextButton(onClick = { scale = maxOf(0.7f, scale - 0.2f) }) { Text("A-", fontSize = 13.sp) }
+            TextButton(onClick = { scale = minOf(2.5f, scale + 0.2f) }) { Text("A+", fontSize = 15.sp) }
+        }
         OutlinedButton(onClick = { openExternal(ctx, doc, t.noApp) }) { Text(t.ext) }
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             when (doc.type) {
-                FType.DOC -> DocRichView(doc, t, scale)
-                FType.XLS -> SheetTableView(doc, t, scale)
+                FType.DOC -> if (webCapable && webMode) {
+                    DocxWebView(doc, t) { webMode = false }
+                } else {
+                    DocRichView(doc, t, scale)
+                }
+                FType.XLS -> if (webCapable && webMode) {
+                    XlsxWebView(doc, t) { webMode = false }
+                } else {
+                    SheetTableView(doc, t, scale)
+                }
                 FType.PPT -> SlidesRichView(doc, t, scale)
                 else -> LegacyFallback(t, doc)
             }
@@ -224,7 +240,7 @@ private fun SheetTableView(doc: DocFile, t: L, scale: Float) {
                     ) {
                         Box(
                             Modifier
-                                .widthIn(min = 40.dp)
+                                .width(44.dp)
                                 .border(0.5.dp, border)
                                 .padding(6.dp),
                             contentAlignment = Alignment.Center,
@@ -232,7 +248,7 @@ private fun SheetTableView(doc: DocFile, t: L, scale: Float) {
                         for (c in 0 until cols) {
                             Box(
                                 Modifier
-                                    .widthIn(min = 90.dp)
+                                    .width(120.dp)
                                     .border(0.5.dp, border)
                                     .padding(6.dp),
                                 contentAlignment = Alignment.Center,
@@ -255,7 +271,7 @@ private fun SheetTableView(doc: DocFile, t: L, scale: Float) {
                     ) {
                         Box(
                             Modifier
-                                .widthIn(min = 40.dp)
+                                .width(44.dp)
                                 .border(0.5.dp, border)
                                 .padding(6.dp),
                             contentAlignment = Alignment.Center,
@@ -264,7 +280,7 @@ private fun SheetTableView(doc: DocFile, t: L, scale: Float) {
                         for (c in 0 until cols) {
                             Box(
                                 Modifier
-                                    .widthIn(min = 90.dp)
+                                    .width(120.dp)
                                     .border(0.5.dp, border)
                                     .padding(6.dp),
                             ) {

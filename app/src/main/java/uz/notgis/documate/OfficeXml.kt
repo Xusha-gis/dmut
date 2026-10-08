@@ -26,6 +26,16 @@ object OfficeXml {
 
     data class SheetData(val name: String, val rows: List<List<String>>)
 
+    /** "AB" -> 27 (0-bazali ustun indeksi). */
+    private fun colIndex(letters: String): Int {
+        var n = 0
+        for (ch in letters) {
+            if (ch !in 'A'..'Z') return -1
+            n = n * 26 + (ch - 'A' + 1)
+        }
+        return n - 1
+    }
+
     fun read(ctx: Context, uri: Uri, fileName: String, sheetLabel: String = "Varaq"): Result? {
         val ext = fileName.substringAfterLast('.', "").lowercase()
         return try {
@@ -49,20 +59,40 @@ object OfficeXml {
     }
 
     private fun extractTagText(xml: String, tag: String): List<String> {
-        // <w:t>matn</w:t> yoki <a:t>matn</a:t> ko'rinishidagi teglar
+        // <w:t>matn</w:t> yoki <a:t>matn</a:t> — MUHIM: <a:txBody>, <w:tabs> kabi
+        // prefiks-teglarni ilmaslik uchun ochuvchi qavsdan keyingi belgi chegarasi shart
         val out = ArrayList<String>()
+        val open = "<$tag"
+        val close = "</$tag>"
         var i = 0
         while (true) {
-            val s = xml.indexOf("<$tag", i)
+            var s = xml.indexOf(open, i)
+            // chegara tekshiruvi: keyingi belgi bo'shliq, '/', '>' yoki tab/qator bo'lishi shart
+            while (s >= 0) {
+                val nx = s + open.length
+                val c = if (nx < xml.length) xml[nx] else '>'
+                if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '/' || c == '>') break
+                s = xml.indexOf(open, s + 1)
+            }
             if (s < 0) break
             val gs = xml.indexOf('>', s)
             if (gs < 0) break
-            val e = xml.indexOf("</$tag>", gs)
+            if (xml[gs - 1] == '/') {
+                // o'z-o'zidan yopiluvchi teg (<a:t/>): matn yo'q
+                i = gs + 1
+                continue
+            }
+            val e = xml.indexOf(close, gs)
             if (e < 0) break
             var t = xml.substring(gs + 1, e)
+            // ichida yana teg bo'lsa (noto'g'ri ushlangan) — tashlab yuborish
+            if ('<' in t) {
+                i = gs + 1
+                continue
+            }
             t = t.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
             if (t.isNotEmpty()) out.add(t)
-            i = e + tag.length + 3
+            i = e + close.length
         }
         return out
     }
@@ -132,25 +162,32 @@ object OfficeXml {
                     val xml = zip.getInputStream(e).bufferedReader().readText()
                     val rows = ArrayList<List<String>>()
                     xml.split("<row").drop(1).take(500).forEach { rowXml ->
-                        val cells = ArrayList<String>()
-                        // <c ...><v>idx</v></c> yoki <c t="inlineStr"><t>..</t></c> yoki <c t="s">
+                        // Bo'sh kataklar XML da yo'q (sparse) — r="C5" manzili bo'yicha joylashtiramiz
+                        val byCol = HashMap<Int, String>()
+                        var maxCol = -1
                         rowXml.split("<c ").drop(1).take(100).forEach { c ->
+                            val ref = Regex("r=\"([A-Z]+)\\d+\"").find(c)?.groupValues?.get(1) ?: return@forEach
+                            val col = colIndex(ref)
+                            if (col < 0 || col > 60) return@forEach
+                            maxCol = maxOf(maxCol, col)
                             val tAttr = Regex("t=\"([^\"]+)\"").find(c)?.groupValues?.get(1)
-                            when (tAttr) {
+                            byCol[col] = when (tAttr) {
                                 "s" -> {
                                     val idx = Regex("<v>(-?\\d+)</v>").find(c)?.groupValues?.get(1)?.toIntOrNull()
-                                    cells.add(if (idx != null && idx in shared.indices) shared[idx] else "")
+                                    if (idx != null && idx in shared.indices) shared[idx] else ""
                                 }
-                                "inlineStr" -> cells.add(extractTagText(c, "t").joinToString(""))
-                                "str", "e" -> cells.add(Regex("<v>([^<]*)</v>").find(c)?.groupValues?.get(1) ?: "")
+                                "inlineStr" -> extractTagText(c, "t").joinToString("")
+                                "str", "e" -> Regex("<v>([^<]*)</v>").find(c)?.groupValues?.get(1) ?: ""
                                 else -> {
-                                    // raqam yoki sana
-                                    val v = Regex("<v>([^<]*)</v>").find(c)?.groupValues?.get(1)
-                                    cells.add(v ?: extractTagText(c, "t").joinToString(""))
+                                    Regex("<v>([^<]*)</v>").find(c)?.groupValues?.get(1)
+                                        ?: extractTagText(c, "t").joinToString("")
                                 }
                             }
                         }
-                        if (cells.any { it.isNotBlank() }) rows.add(cells)
+                        if (maxCol >= 0) {
+                            val cells = (0..maxCol).map { byCol[it] ?: "" }
+                            if (cells.any { it.isNotBlank() }) rows.add(cells)
+                        }
                     }
                     val name = sheetNames.getOrNull(n - 1) ?: "$sheetLabel $n"
                     if (rows.isNotEmpty()) out.add(SheetData(name, rows))
