@@ -19,14 +19,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"
 
-      - name: SDK paketlarni qabul qilish
-        run: yes | sdkmanager --licenses > /dev/null || true
+      - name: Android SDK ni sozlash
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          yes | sdkmanager --licenses > /dev/null || true
 
       - name: Unit testlar
         run: gradle :app:testDebugUnitTest --no-daemon
