@@ -142,9 +142,9 @@ fun SettingsScreen(vm: AppViewModel, padding: PaddingValues, onPickFolder: () ->
         }
 
         SectionLabel(t.about)
-        ExpandCard("${t.about} • ${t.version} 0.3.0") {
+        ExpandCard("${t.about} • ${t.version} 0.4.0") {
             Text(
-                "DocuMate 0.3.0 — offline. PDF parol/qidiruv/eslash, docx/xlsx/pptx ichki ko'ruvchi, kamera skaneri, PDF birlashtirish, rezyume shabloni, 3 til.",
+                t.aboutBody,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }

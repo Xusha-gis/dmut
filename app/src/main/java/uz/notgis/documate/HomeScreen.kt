@@ -148,7 +148,7 @@ fun PermissionGate(vm: AppViewModel, onPickFolder: () -> Unit) {
 }
 
 @Composable
-fun FileRow(file: DocFile, fav: Boolean, onOpen: () -> Unit, onFav: () -> Unit) {
+fun FileRow(file: DocFile, fav: Boolean, t: L, onOpen: () -> Unit, onFav: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -186,9 +186,9 @@ fun FileRow(file: DocFile, fav: Boolean, onOpen: () -> Unit, onFav: () -> Unit) 
         }
         IconButton(onClick = onFav) {
             if (fav) {
-                Icon(Icons.Filled.Star, contentDescription = "Sevimlidan olish", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Filled.Star, contentDescription = t.favRemove, tint = MaterialTheme.colorScheme.primary)
             } else {
-                Icon(Icons.Outlined.Star, contentDescription = "Sevimlilarga qo'shish")
+                Icon(Icons.Outlined.Star, contentDescription = t.favAdd)
             }
         }
     }
@@ -199,6 +199,7 @@ fun FileList(
     files: List<DocFile>,
     favs: Set<String>,
     emptyText: String,
+    t: L,
     onOpen: (DocFile) -> Unit,
     onFav: (DocFile) -> Unit,
     modifier: Modifier = Modifier,
@@ -215,7 +216,7 @@ fun FileList(
     } else {
         LazyColumn(modifier.fillMaxSize()) {
             items(files, key = { it.uri.toString() }) { f ->
-                FileRow(f, fav = f.uri.toString() in favs, onOpen = { onOpen(f) }, onFav = { onFav(f) })
+                FileRow(f, fav = f.uri.toString() in favs, t = t, onOpen = { onOpen(f) }, onFav = { onFav(f) })
             }
         }
     }
@@ -245,7 +246,7 @@ fun HomeScreen(
             .padding(padding)
     ) {
         ScreenTitle(t.docs) {
-            IconButton(onClick = vm::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Yangilash") }
+            IconButton(onClick = vm::refresh) { Icon(Icons.Filled.Refresh, contentDescription = t.refreshW) }
         }
 
         if (!st.loaded) return@Column
@@ -298,7 +299,12 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("${files.size} ${t.filesCount}", style = MaterialTheme.typography.labelMedium)
-            TextButton(onClick = { vm.sort.value = sort.next() }) { Text("${t.sort}: ${sort.label}") }
+            val sortLabel = when (sort) {
+                Sort.DATE -> t.sortDate
+                Sort.NAME -> t.sortName
+                Sort.SIZE -> t.sortSize
+            }
+            TextButton(onClick = { vm.sort.value = sort.next() }) { Text("${t.sort}: $sortLabel") }
         }
 
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -310,6 +316,7 @@ fun HomeScreen(
             files = files,
             favs = st.favs,
             emptyText = t.notFound,
+            t = t,
             onOpen = onOpen,
             onFav = vm::toggleFav,
         )
@@ -320,7 +327,11 @@ fun HomeScreen(
 fun FavoritesScreen(vm: AppViewModel, padding: PaddingValues, onOpen: (DocFile) -> Unit) {
     val st by vm.settings.collectAsStateWithLifecycle()
     val all by vm.files.collectAsStateWithLifecycle()
-    val favFiles = all.filter { it.uri.toString() in st.favs }.sortedBy { it.name.lowercase() }
+    var filter by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<FType?>(null) }
+    val favFiles = all
+        .filter { it.uri.toString() in st.favs }
+        .filter { filter == null || it.type == filter }
+        .sortedBy { it.name.lowercase() }
     val t = stringsFor(st.lang)
 
     Column(
@@ -329,10 +340,26 @@ fun FavoritesScreen(vm: AppViewModel, padding: PaddingValues, onOpen: (DocFile) 
             .padding(padding)
     ) {
         ScreenTitle(t.favs)
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item {
+                FilterChip(selected = filter == null, onClick = { filter = null }, label = { Text(t.all) })
+            }
+            items(FType.entries.toList()) { ft ->
+                FilterChip(
+                    selected = filter == ft,
+                    onClick = { filter = if (filter == ft) null else ft },
+                    label = { Text(ft.tab) },
+                )
+            }
+        }
         FileList(
             files = favFiles,
             favs = st.favs,
             emptyText = t.notFound,
+            t = t,
             onOpen = onOpen,
             onFav = vm::toggleFav,
         )

@@ -112,7 +112,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _files.value = withContext(Dispatchers.IO) { FileScanner.scan(ctx, Uri.parse(tree)) }
         } catch (e: Exception) {
             _files.value = emptyList()
-            _error.value = "Papkani o'qib bo'lmadi. Uni qaytadan tanlang."
+            _error.value = stringsFor(settings.value.lang).errFolder
         } finally {
             _loading.value = false
         }
@@ -157,7 +157,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _files.value = withContext(Dispatchers.IO) { FileScanner.scanAllMedia(ctx) }
         } catch (e: Exception) {
             _files.value = emptyList()
-            _error.value = "Fayllarni o'qib bo'lmadi."
+            _error.value = stringsFor(settings.value.lang).errFiles
         } finally {
             _loading.value = false
         }

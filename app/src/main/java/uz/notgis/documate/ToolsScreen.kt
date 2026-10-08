@@ -119,7 +119,7 @@ object ImageToPdf {
 }
 
 @Composable
-private fun ToolCard(title: String, body: String, ready: Boolean, busy: Boolean = false, onClick: () -> Unit = {}) {
+private fun ToolCard(title: String, body: String, t: L, ready: Boolean, busy: Boolean = false, onClick: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -133,9 +133,9 @@ private fun ToolCard(title: String, body: String, ready: Boolean, busy: Boolean 
                 modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             )
             if (ready) {
-                Button(onClick = onClick, enabled = !busy) { Text(if (busy) "…" else "Boshlash") }
+                Button(onClick = onClick, enabled = !busy) { Text(if (busy) t.creating else t.start) }
             } else {
-                Text("Tez orada", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.outline)
+                Text(t.soon, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.outline)
             }
         }
     }
@@ -214,7 +214,7 @@ fun ToolsScreen(vm: AppViewModel, padding: PaddingValues) {
             val stamp = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.US).format(Date())
             mergeSaver.launch("Birlashtirilgan_$stamp.pdf")
         } else if (uris.isNotEmpty()) {
-            status = "Kamida 2 ta PDF tanlang."
+            status = t.need2
         }
     }
 
@@ -272,10 +272,10 @@ fun ToolsScreen(vm: AppViewModel, padding: PaddingValues) {
     ) {
         ScreenTitle(t.tools)
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ToolCard(t.toolsImagePdf, t.toolsImagePdfBody, ready = true, busy = busy, onClick = {
+            ToolCard(t.toolsImagePdf, t.toolsImagePdfBody, t, ready = true, busy = busy, onClick = {
                 picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             })
-            ToolCard(t.toolsCamera, t.toolsCameraBody, ready = true, busy = busy, onClick = {
+            ToolCard(t.toolsCamera, t.toolsCameraBody, t, ready = true, busy = busy, onClick = {
                 try {
                     val f = File.createTempFile("scan_", ".jpg", ctx.cacheDir)
                     val u = FileProvider.getUriForFile(ctx, ctx.packageName + ".provider", f)
@@ -284,13 +284,13 @@ fun ToolsScreen(vm: AppViewModel, padding: PaddingValues) {
                     camera.launch(u)
                 } catch (e: Exception) {
                     busy = false
-                    status = "Kamera ${t.failed}."
+                    status = t.camFail
                 }
             })
-            ToolCard(t.toolsMerge, t.toolsMergeBody, ready = true, busy = busy, onClick = {
+            ToolCard(t.toolsMerge, t.toolsMergeBody, t, ready = true, busy = busy, onClick = {
                 mergePicker.launch(arrayOf("application/pdf"))
             })
-            ToolCard(t.toolsText, t.toolsTextBody, ready = true, busy = busy, onClick = {
+            ToolCard(t.toolsText, t.toolsTextBody, t, ready = true, busy = busy, onClick = {
                 textPicker.launch(arrayOf("text/*"))
             })
             // shablon kartasi (ichida mini forma)
@@ -309,8 +309,8 @@ fun ToolsScreen(vm: AppViewModel, padding: PaddingValues) {
                     }
                 }
             }
-            ToolCard("PDF muharriri (to'liq)", "Sahifa o'chirish, aylantirish, highlight — keyingi bosqich.", ready = false)
-            ToolCard("OCR (matn ajratish)", t.ocrNote, ready = false)
+            ToolCard(t.editorTitle, t.editorBody, t, ready = false)
+            ToolCard(t.ocrTitle, t.ocrNote, t, ready = false)
             status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         }
     }

@@ -137,7 +137,7 @@ private val INVERT = ColorMatrix(
 )
 
 @Composable
-private fun PdfPage(session: PdfSession, index: Int, widthPx: Int, night: Boolean) {
+private fun PdfPage(session: PdfSession, index: Int, widthPx: Int, night: Boolean, pageWord: String = "Sahifa") {
     val bmp by produceState<Bitmap?>(null, session, index, widthPx) {
         value = withContext(Dispatchers.IO) {
             try {
@@ -158,7 +158,7 @@ private fun PdfPage(session: PdfSession, index: Int, widthPx: Int, night: Boolea
     } else {
         Image(
             bitmap = b.asImageBitmap(),
-            contentDescription = "Sahifa ${index + 1}",
+            contentDescription = "$pageWord ${index + 1}",
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(b.width.toFloat() / b.height.toFloat()),
@@ -419,7 +419,7 @@ fun ReaderScreen(vm: AppViewModel, doc: DocFile, onBack: () -> Unit) {
                                     contentPadding = PaddingValues(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    items(s.pageCount, key = { it }) { i -> PdfPage(s, i, widthPx, night) }
+                                    items(s.pageCount, key = { it }) { i -> PdfPage(s, i, widthPx, night, t.page) }
                                 }
                             }
                         }

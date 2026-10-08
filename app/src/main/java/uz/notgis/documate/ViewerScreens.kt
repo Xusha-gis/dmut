@@ -59,8 +59,10 @@ fun ViewerFrame(
 }
 
 @Composable
-fun TextScreen(doc: DocFile, onBack: () -> Unit) {
+fun TextScreen(vm: AppViewModel, doc: DocFile, onBack: () -> Unit) {
     val ctx = LocalContext.current
+    val st by androidx.lifecycle.compose.collectAsStateWithLifecycle(vm.settings)
+    val t = stringsFor(st.lang)
     val result by produceState<Result<List<String>>?>(null, doc.uri) {
         value = withContext(Dispatchers.IO) {
             runCatching {
@@ -81,7 +83,7 @@ fun TextScreen(doc: DocFile, onBack: () -> Unit) {
             when {
                 r == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 r.isFailure -> Text(
-                    "Faylni o'qib bo'lmadi.",
+                    t.readFail,
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(32.dp),
@@ -104,33 +106,4 @@ fun TextScreen(doc: DocFile, onBack: () -> Unit) {
     }
 }
 
-/** Word / Excel / PowerPoint ko'ruvchilari keyingi bosqichda (Apache POI). Hozircha tizim ilovasida ochiladi. */
-@Composable
-fun ExternalOpenScreen(doc: DocFile, onBack: () -> Unit) {
-    val ctx = LocalContext.current
-    ViewerFrame(title = doc.name, onBack = onBack) { pad ->
-        Column(
-            Modifier
-                .padding(pad)
-                .fillMaxSize(),
-        ) {
-            EmptyState(
-                title = "${doc.type.tab} ko'ruvchisi hali yo'q",
-                body = "Bu format uchun ichki ko'ruvchi keyingi bosqichda qo'shiladi. Hozircha faylni boshqa ilovada ochishingiz mumkin.",
-                button = "Boshqa ilovada ochish",
-                onClick = {
-                    val ext = doc.name.substringAfterLast('.', "").lowercase()
-                    val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
-                    val intent = Intent(Intent.ACTION_VIEW)
-                        .setDataAndType(doc.uri, mime)
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    try {
-                        ctx.startActivity(intent)
-                    } catch (e: ActivityNotFoundException) {
-                        // mos ilova yo'q — hech narsa qilmaymiz
-                    }
-                },
-            )
-        }
-    }
-}
+

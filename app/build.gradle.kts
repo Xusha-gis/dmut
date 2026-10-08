@@ -12,8 +12,8 @@ android {
         applicationId = "uz.notgis.documate"
         minSdk = 24
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.3.5"
+        versionCode = 9
+        versionName = "0.4.0"
     }
 
     // CI debug imzo: DEBUG_KEYSTORE bo'lsa shu ishlatiladi (aks holda standart debug kalit).

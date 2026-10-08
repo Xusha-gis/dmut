@@ -85,11 +85,11 @@ private fun App(vm: AppViewModel, bootCrash: String?) {
         if (current != null) {
             BackHandler { vm.openDoc.value = null }
             val back = { vm.openDoc.value = null }
-            when (current.type) {
-                FType.PDF -> ReaderScreen(vm, current, back)
-                FType.TXT -> TextScreen(current, back)
-                FType.DOC, FType.XLS, FType.PPT -> OfficeScreen(current, back)
-            }
+                when (current.type) {
+                    FType.PDF -> ReaderScreen(vm, current, back)
+                    FType.TXT -> TextScreen(vm, current, back)
+                    FType.DOC, FType.XLS, FType.PPT -> OfficeScreen(vm, current, back)
+                }
         } else {
             MainScaffold(vm)
         }
