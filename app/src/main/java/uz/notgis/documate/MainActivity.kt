@@ -26,15 +26,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -77,10 +74,9 @@ private fun App(vm: AppViewModel) {
 
     DocuMateTheme(dark) {
         val ctx = LocalContext.current
-        var crash by remember { mutableStateOf<String?>(null) }
-        LaunchedEffect(Unit) {
-            crash = withContext(Dispatchers.IO) { CrashReporter.read(ctx) }
-        }
+        // MUHIM: sinxron o'qish. LaunchedEffect bilan bo'lmaydi — crash kompozitsiya
+        // paytida yuz bersa, effect ishlamay qoladi va hisobot ekrani chiqmaydi.
+        var crash by remember { mutableStateOf(CrashReporter.read(ctx)) }
         val crashReport = crash
         if (crashReport != null) {
             CrashScreen(crashReport) {
