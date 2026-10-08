@@ -26,11 +26,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -46,6 +50,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashReporter.install(this)
         enableEdgeToEdge()
         setContent { App(vm) }
     }
@@ -71,6 +76,19 @@ private fun App(vm: AppViewModel) {
     }
 
     DocuMateTheme(dark) {
+        val ctx = LocalContext.current
+        var crash by remember { mutableStateOf<String?>(null) }
+        LaunchedEffect(Unit) {
+            crash = withContext(Dispatchers.IO) { CrashReporter.read(ctx) }
+        }
+        val crashReport = crash
+        if (crashReport != null) {
+            CrashScreen(crashReport) {
+                CrashReporter.clear(ctx)
+                crash = null
+            }
+            return@DocuMateTheme
+        }
         val current = open
         if (current != null) {
             BackHandler { vm.openDoc.value = null }
