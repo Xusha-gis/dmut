@@ -139,9 +139,15 @@ object OfficeOld {
                     val out = ArrayList<OfficeXml.SlideContent>()
                     ss.slides.forEachIndexed { idx, slide ->
                         if (idx > 300) return@forEachIndexed
-                        val texts = slide.placeholders
+                        val texts = slide.shapes
                             .filterIsInstance<HSLFTextShape>()
-                            .mapNotNull { it.text?.trim() }
+                            .mapNotNull {
+                                try {
+                                    it.text?.trim()
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
                             .filter { it.isNotEmpty() }
                         val imgs = slide.shapes
                             .filterIsInstance<HSLFPictureShape>()
