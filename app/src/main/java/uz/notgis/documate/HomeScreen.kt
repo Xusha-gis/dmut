@@ -23,6 +23,14 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -30,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -82,6 +92,57 @@ fun EmptyState(title: String, body: String, button: String? = null, onClick: () 
             modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
         )
         if (button != null) Button(onClick = onClick) { Text(button) }
+    }
+}
+
+/** Birinchi ekran: barcha fayllarga ruxsat so'rash + SAF papka zaxira yo'li. */
+@Composable
+fun PermissionGate(vm: AppViewModel, onPickFolder: () -> Unit) {
+    val st by vm.settings.collectAsStateWithLifecycle()
+    val t = stringsFor(st.lang)
+    val ctx = LocalContext.current
+    val readLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) vm.refresh()
+    }
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(t.permTitle, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+        Text(
+            t.pickFolderBody,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
+        )
+        Button(
+            onClick = {
+                if (Build.VERSION.SDK_INT >= 30) {
+                    try {
+                        ctx.startActivity(
+                            Intent(
+                                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                Uri.parse("package:${ctx.packageName}"),
+                            )
+                        )
+                    } catch (e: Exception) {
+                        try {
+                            ctx.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                        } catch (_: Exception) {
+                        }
+                    }
+                } else {
+                    readLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(t.allowAll) }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onPickFolder, modifier = Modifier.fillMaxWidth()) { Text(t.pickFolder) }
     }
 }
 
@@ -180,23 +241,24 @@ fun HomeScreen(
             .fillMaxSize()
             .padding(padding)
     ) {
+        val allOk by vm.allAccess.collectAsStateWithLifecycle()
         ScreenTitle(t.docs) {
-            if (st.tree != null) {
-                IconButton(onClick = vm::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Yangilash") }
-            }
+            IconButton(onClick = vm::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Yangilash") }
         }
 
         if (!st.loaded) return@Column
 
-        if (st.tree == null) {
-            EmptyState(
-                title = t.pickFolder,
-                body = t.pickFolderBody,
-                button = t.pickFolder,
-                onClick = onPickFolder,
-            )
+        if (!allOk && st.tree == null) {
+            PermissionGate(vm, onPickFolder)
             return@Column
         }
+
+        Text(
+            if (allOk) "• ${t.allFiles}" else "• ${t.folder}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp),
+        )
 
         OutlinedTextField(
             value = query,

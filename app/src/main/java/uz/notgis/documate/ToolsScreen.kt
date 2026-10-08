@@ -53,11 +53,13 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 
-/** Rasm → PDF: A4 sahifa, rasm markazga joylanadi, EXIF aylantirishi hisobga olinadi. */
+/**
+ * Rasm → PDF: sahifa o'lchami RASM o'lchamiga moslashadi (A4 ga majburlanmaydi).
+ * Katta tomon 1440 pt dan oshsa proporsional kichraytiriladi. EXIF burilishi hisobga olinadi.
+ */
 object ImageToPdf {
-    private const val PAGE_W = 595
-    private const val PAGE_H = 842
     private const val MAX_SIDE = 2000
+    private const val MAX_PAGE = 1440
 
     fun build(ctx: Context, images: List<Uri>, out: Uri) {
         val doc = PdfDocument()
@@ -66,13 +68,12 @@ object ImageToPdf {
             for (uri in images) {
                 val bmp = decode(ctx, uri) ?: continue
                 n++
-                val page = doc.startPage(PdfDocument.PageInfo.Builder(PAGE_W, PAGE_H, n).create())
-                val scale = min(PAGE_W / bmp.width.toFloat(), PAGE_H / bmp.height.toFloat())
-                val dw = bmp.width * scale
-                val dh = bmp.height * scale
-                val left = (PAGE_W - dw) / 2f
-                val top = (PAGE_H - dh) / 2f
-                page.canvas.drawBitmap(bmp, null, RectF(left, top, left + dw, top + dh), Paint(Paint.FILTER_BITMAP_FLAG))
+                // sahifa = rasm o'lchami (proporsiya saqlanadi, oq hoshiya yo'q)
+                val k = min(1f, MAX_PAGE / max(bmp.width, bmp.height).toFloat())
+                val pw = max(1, (bmp.width * k).toInt())
+                val ph = max(1, (bmp.height * k).toInt())
+                val page = doc.startPage(PdfDocument.PageInfo.Builder(pw, ph, n).create())
+                page.canvas.drawBitmap(bmp, null, RectF(0f, 0f, pw.toFloat(), ph.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG))
                 doc.finishPage(page)
                 bmp.recycle()
             }
@@ -243,19 +244,25 @@ fun ToolsScreen(vm: AppViewModel, padding: PaddingValues) {
         }
     }
 
-    // --- shablonlar ---
+    // --- rezyume shabloni ---
     var showTpl by remember { mutableStateOf(false) }
-    var tplName by remember { mutableStateOf("") }
-    var tplBody by remember { mutableStateOf("") }
+    var cvName by remember { mutableStateOf("") }
+    var cvPhone by remember { mutableStateOf("") }
+    var cvExp by remember { mutableStateOf("") }
     val tplSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { out ->
         if (out != null) {
             scope.launch(Dispatchers.IO) {
                 runCatching {
                     ctx.contentResolver.openOutputStream(out)?.use {
-                        Templates.ariza(it, tplName.ifEmpty { "—" }, tplBody.ifEmpty { "—" }, SimpleDateFormat("dd.MM.yyyy", Locale.US).format(Date()))
+                        Templates.rezyume(
+                            it,
+                            cvName.ifEmpty { "—" },
+                            cvPhone.ifEmpty { "—" },
+                            cvExp.ifEmpty { "—" },
+                        )
                     }
                 }
-                withContext(Dispatchers.Main) { status = "Shablon PDF ${t.saved}." }
+                withContext(Dispatchers.Main) { status = "Rezyume PDF ${t.saved}." }
             }
         }
     }
@@ -294,9 +301,10 @@ fun ToolsScreen(vm: AppViewModel, padding: PaddingValues) {
                     if (!showTpl) {
                         Button(onClick = { showTpl = true }) { Text(t.start) }
                     } else {
-                        OutlinedTextField(value = tplName, onValueChange = { tplName = it }, label = { Text("F.I.Sh") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = tplBody, onValueChange = { tplBody = it }, label = { Text("Matn") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), minLines = 3)
-                        Button(onClick = { tplSaver.launch("Ariza.pdf") }, modifier = Modifier.padding(top = 8.dp)) { Text(t.start) }
+                        OutlinedTextField(value = cvName, onValueChange = { cvName = it }, label = { Text(t.cvName) }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = cvPhone, onValueChange = { cvPhone = it }, label = { Text(t.cvPhone) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                        OutlinedTextField(value = cvExp, onValueChange = { cvExp = it }, label = { Text(t.cvExp) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), minLines = 3)
+                        Button(onClick = { tplSaver.launch("Rezyume.pdf") }, modifier = Modifier.padding(top = 8.dp)) { Text(t.start) }
                         TextButton(onClick = { showTpl = false }) { Text("✕") }
                     }
                 }

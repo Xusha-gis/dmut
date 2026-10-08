@@ -14,8 +14,6 @@ object Keys {
     val FAVS = stringSetPreferencesKey("favs")
     val THEME = stringPreferencesKey("theme") // system | light | dark
     val LANG = stringPreferencesKey("lang") // uz | ru | en
-    val PIN_HASH = stringPreferencesKey("pin_hash")
-    val LOCK = stringPreferencesKey("lock") // 0 | 1
 }
 
 data class UserSettings(
@@ -23,8 +21,6 @@ data class UserSettings(
     val favs: Set<String> = emptySet(),
     val theme: String = "system",
     val lang: String = "uz",
-    val lockOn: Boolean = false,
-    val hasPin: Boolean = false,
     val loaded: Boolean = false,
 )
 

@@ -1,8 +1,13 @@
 package uz.notgis.documate
 
+import android.Manifest
 import android.app.Application
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,8 +39,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 favs = p[Keys.FAVS] ?: emptySet(),
                 theme = p[Keys.THEME] ?: "system",
                 lang = p[Keys.LANG] ?: "uz",
-                lockOn = (p[Keys.LOCK] ?: "0") == "1",
-                hasPin = !p[Keys.PIN_HASH].isNullOrEmpty(),
                 loaded = true,
             )
         }
@@ -69,17 +72,38 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    init {
-        viewModelScope.launch {
-            settings.map { it.tree }.distinctUntilChanged().collect { tree ->
-                if (tree != null) load(tree) else _files.value = emptyList()
-            }
+    /** Barcha fayllarga kirish ruxsati bormi (Android 11+ da All-files, eskida Read). */
+    fun hasAllAccess(): Boolean {
+        return if (Build.VERSION.SDK_INT >= 30) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED
         }
     }
 
+    init {
+        viewModelScope.launch {
+            settings.map { it.tree }.distinctUntilChanged().collect { refreshAuto() }
+        }
+    }
+
+    /** Ruxsat bo'lsa hammasini, bo'lmasa tanlangan papkani o'qiydi. */
     fun refresh() {
-        val tree = settings.value.tree ?: return
-        viewModelScope.launch { load(tree) }
+        viewModelScope.launch { refreshAuto() }
+    }
+
+    private val _allAccess = MutableStateFlow(false)
+    val allAccess: StateFlow<Boolean> = _allAccess.asStateFlow()
+
+    private suspend fun refreshAuto() {
+        _allAccess.value = hasAllAccess()
+        if (_allAccess.value) {
+            loadAll()
+        } else {
+            val tree = settings.value.tree
+            if (tree != null) load(tree) else _files.value = emptyList()
+        }
     }
 
     private suspend fun load(tree: String) {
@@ -127,39 +151,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { ctx.dataStore.edit { it[Keys.LANG] = value } }
     }
 
-    private fun sha256(s: String): String {
-        val d = java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray())
-        return d.joinToString("") { "%02x".format(it) }
-    }
-
-    fun setPin(pin: String) {
-        viewModelScope.launch {
-            ctx.dataStore.edit {
-                it[Keys.PIN_HASH] = sha256(pin)
-                it[Keys.LOCK] = "1"
-            }
-        }
-    }
-
-    fun removeLock() {
-        viewModelScope.launch {
-            ctx.dataStore.edit {
-                it[Keys.LOCK] = "0"
-                it.remove(Keys.PIN_HASH)
-            }
+    private suspend fun loadAll() {
+        _loading.value = true
+        _error.value = null
+        try {
+            _files.value = withContext(Dispatchers.IO) { FileScanner.scanAllMedia(ctx) }
+        } catch (e: Exception) {
+            _files.value = emptyList()
+            _error.value = "Fayllarni o'qib bo'lmadi."
+        } finally {
+            _loading.value = false
         }
     }
 
     private class Found : Exception()
-
-    /** PIN tekshirish (suspend, UI dan chaqiriladi). */
-    suspend fun verifyPin(pin: String): Boolean {
-        var saved: String? = null
-        try {
-            ctx.dataStore.data.collect { p -> saved = p[Keys.PIN_HASH]; throw Found() }
-        } catch (e: Found) { /* kutilgan */ }
-        return saved != null && saved == sha256(pin)
-    }
 
     suspend fun getLastPage(docUri: String): Int {
         var v = 0

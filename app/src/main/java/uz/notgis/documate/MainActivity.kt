@@ -12,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
@@ -24,13 +25,20 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 class MainActivity : ComponentActivity() {
@@ -49,7 +57,6 @@ private enum class Tab { HOME, TOOLS, FAVS, SETTINGS }
 private fun App(vm: AppViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val open by vm.openDoc.collectAsStateWithLifecycle()
-    val t = stringsFor(settings.lang)
     val dark = when (settings.theme) {
         "dark" -> true
         "light" -> false
@@ -64,37 +71,47 @@ private fun App(vm: AppViewModel) {
     }
 
     DocuMateTheme(dark) {
-        LockGate(vm, t) {
-            val current = open
-            if (current != null) {
-                BackHandler { vm.openDoc.value = null }
-                val back = { vm.openDoc.value = null }
-                when (current.type) {
-                    FType.PDF -> ReaderScreen(vm, current, back)
-                    FType.TXT -> TextScreen(current, back)
-                    FType.DOC, FType.XLS, FType.PPT -> OfficeScreen(current, back)
-                }
-            } else {
-                MainScaffold(vm, t)
+        val current = open
+        if (current != null) {
+            BackHandler { vm.openDoc.value = null }
+            val back = { vm.openDoc.value = null }
+            when (current.type) {
+                FType.PDF -> ReaderScreen(vm, current, back)
+                FType.TXT -> TextScreen(current, back)
+                FType.DOC, FType.XLS, FType.PPT -> OfficeScreen(current, back)
             }
+        } else {
+            MainScaffold(vm)
         }
     }
 }
 
 @Composable
-private fun MainScaffold(vm: AppViewModel, t: L) {
+private fun MainScaffold(vm: AppViewModel) {
+    val st by vm.settings.collectAsStateWithLifecycle()
+    val t = stringsFor(st.lang)
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) vm.setTree(uri)
     }
     val launchPicker = { pickFolder.launch(null) }
 
+    // Sozlamalardan qaytganda (ruxsat berilgach) ro'yxatni yangilash
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) vm.refresh()
+        }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
+
     data class TabItem(val id: Tab, val label: String, val icon: ImageVector)
     val tabs = listOf(
-        TabItem(Tab.HOME, t.home, Icons.Filled.Home),
-        TabItem(Tab.TOOLS, t.tools, Icons.Filled.Build),
-        TabItem(Tab.FAVS, t.favs, Icons.Filled.Star),
-        TabItem(Tab.SETTINGS, t.settings, Icons.Filled.Settings),
+        TabItem(Tab.HOME, t.navHome, Icons.Filled.Home),
+        TabItem(Tab.TOOLS, t.navTools, Icons.Filled.Build),
+        TabItem(Tab.FAVS, t.navFavs, Icons.Filled.Star),
+        TabItem(Tab.SETTINGS, t.navSettings, Icons.Filled.Settings),
     )
 
     Scaffold(
@@ -105,7 +122,15 @@ private fun MainScaffold(vm: AppViewModel, t: L) {
                         selected = tab == item.id,
                         onClick = { tab = item.id },
                         icon = { Icon(item.icon, contentDescription = null) },
-                        label = { Text(item.label) },
+                        label = {
+                            Text(
+                                item.label,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                fontSize = 11.sp,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        },
                     )
                 }
             }
