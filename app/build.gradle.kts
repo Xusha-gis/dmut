@@ -12,8 +12,8 @@ android {
         applicationId = "uz.notgis.documate"
         minSdk = 24
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.6.0"
+        versionCode = 12
+        versionName = "0.7.0"
     }
 
     // CI debug imzo: DEBUG_KEYSTORE bo'lsa shu ishlatiladi (aks holda standart debug kalit).
@@ -56,6 +56,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // POI eski formatlar uchun (minSdk 24 da java.time va b. uchun)
+        isCoreLibraryDesugarEnabled = true
     }
     kotlinOptions {
         jvmTarget = "17"
@@ -70,6 +72,11 @@ android {
             excludes += "META-INF/LICENSE*"
             excludes += "META-INF/NOTICE*"
             excludes += "META-INF/*.kotlin_module"
+            excludes += "META-INF/*.properties"
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/io.netty.versions.properties"
+            excludes += "META-INF/versions/**"
+            excludes += "META-INF/services/javax.annotation.processing.Processor"
         }
     }
 }
@@ -91,10 +98,14 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
-    // PDF parol + matn qidirish (offline, Tom-Roush forki). POI o'rniga
-    // docx/xlsx/pptx uchun yengil ichki XML parser ishlatiladi (OfficeXml.kt)
-    // — shuning uchun POI ning 15 MB+ og'irligi qo'shilmadi.
+    // PDF parol + matn qidirish (offline, Tom-Roush forki).
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
+    // Eski Office formatlari (.doc/.xls/.ppt) — offline, Apache POI.
+    // Yangi formatlar (docx/xlsx) WebView (mammoth/SheetJS) + yengil parserda qoladi.
+    implementation("org.apache.poi:poi:5.2.5")
+    implementation("org.apache.poi:poi-scratchpad:5.2.5")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
     testImplementation("junit:junit:4.13.2")
 }

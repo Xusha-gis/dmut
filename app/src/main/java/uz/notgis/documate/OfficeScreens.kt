@@ -90,18 +90,22 @@ fun OfficeScreen(vm: AppViewModel, doc: DocFile, onBack: () -> Unit) {
         OutlinedButton(onClick = { openExternal(ctx, doc, t.noApp) }) { Text(t.ext) }
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
-            when (doc.type) {
-                FType.DOC -> if (webCapable && webMode) {
+            when (ext) {
+                "docx" -> if (webCapable && webMode) {
                     DocxWebView(doc, t) { webMode = false }
                 } else {
                     DocRichView(doc, t, scale)
                 }
-                FType.XLS -> if (webCapable && webMode) {
+                "doc" -> OldDocView(doc, t, scale)
+                "xlsx" -> if (webCapable && webMode) {
                     XlsxWebView(doc, t) { webMode = false }
                 } else {
                     SheetTableView(doc, t, scale)
                 }
-                FType.PPT -> SlidesRichView(doc, t, scale)
+                "xls" -> OldXlsView(doc, t, scale)
+                "csv" -> CsvView(doc, t, scale)
+                "pptx" -> SlidesRichView(doc, t, scale)
+                "ppt" -> OldPptView(doc, t, scale)
                 else -> LegacyFallback(t, doc)
             }
         }
@@ -144,7 +148,20 @@ private fun DocRichView(doc: DocFile, t: L, scale: Float) {
     val data by produceState<OfficeXml.DocContent?>(null, doc.uri) {
         value = withContext(Dispatchers.IO) { OfficeXml.readDocxRich(ctx, doc.uri) }
     }
-    val d = data
+    DocBody(data, doc, t, scale)
+}
+
+@Composable
+private fun OldDocView(doc: DocFile, t: L, scale: Float) {
+    val ctx = LocalContext.current
+    val data by produceState<OfficeXml.DocContent?>(null, doc.uri) {
+        value = withContext(Dispatchers.IO) { OfficeOld.readDoc(ctx, doc.uri) }
+    }
+    DocBody(data, doc, t, scale)
+}
+
+@Composable
+private fun DocBody(d: OfficeXml.DocContent?, doc: DocFile, t: L, scale: Float) {
     var loaded by remember { mutableStateOf(false) }
     if (d == null) {
         androidx.compose.runtime.LaunchedEffect(Unit) {
@@ -198,7 +215,29 @@ private fun SheetTableView(doc: DocFile, t: L, scale: Float) {
             OfficeXml.read(ctx, doc.uri, doc.name, t.sheetW) as? OfficeXml.Result.Sheet
         }
     }
-    val d = data
+    SheetsBody(data?.sheets, doc, t, scale)
+}
+
+@Composable
+private fun OldXlsView(doc: DocFile, t: L, scale: Float) {
+    val ctx = LocalContext.current
+    val data by produceState<List<OfficeXml.SheetData>?>(null, doc.uri) {
+        value = withContext(Dispatchers.IO) { OfficeOld.readXls(ctx, doc.uri, t.sheetW) }
+    }
+    SheetsBody(data, doc, t, scale)
+}
+
+@Composable
+private fun CsvView(doc: DocFile, t: L, scale: Float) {
+    val ctx = LocalContext.current
+    val data by produceState<List<OfficeXml.SheetData>?>(null, doc.uri) {
+        value = withContext(Dispatchers.IO) { OfficeOld.readCsv(ctx, doc.uri, doc.name.substringBeforeLast('.')) }
+    }
+    SheetsBody(data, doc, t, scale)
+}
+
+@Composable
+private fun SheetsBody(d: List<OfficeXml.SheetData>?, doc: DocFile, t: L, scale: Float) {
     var loaded by remember { mutableStateOf(false) }
     if (d == null) {
         androidx.compose.runtime.LaunchedEffect(Unit) {
@@ -213,7 +252,7 @@ private fun SheetTableView(doc: DocFile, t: L, scale: Float) {
     val border = MaterialTheme.colorScheme.outline
     // Qidiruv bo'yicha filtrlangan satrlar — LazyScope ichida remember() mumkin emas
     val filtered = remember(d, q) {
-        d.sheets.associate { sh ->
+        d.associate { sh ->
             sh.name to if (q.isBlank()) sh.rows.take(300)
             else sh.rows.filter { r -> r.any { it.contains(q, ignoreCase = true) } }.take(300)
         }
@@ -221,7 +260,7 @@ private fun SheetTableView(doc: DocFile, t: L, scale: Float) {
     Column(Modifier.fillMaxSize()) {
         SearchBar(t, q) { q = it }
         LazyColumn(Modifier.fillMaxSize()) {
-            d.sheets.forEach { sh ->
+            d.forEach { sh ->
                 item(key = sh.name) {
                     Text(
                         sh.name,
@@ -307,7 +346,20 @@ private fun SlidesRichView(doc: DocFile, t: L, scale: Float) {
     val data by produceState<List<OfficeXml.SlideContent>?>(null, doc.uri) {
         value = withContext(Dispatchers.IO) { OfficeXml.readPptxRich(ctx, doc.uri, t.slide) }
     }
-    val d = data
+    SlidesBody(data, doc, t, scale)
+}
+
+@Composable
+private fun OldPptView(doc: DocFile, t: L, scale: Float) {
+    val ctx = LocalContext.current
+    val data by produceState<List<OfficeXml.SlideContent>?>(null, doc.uri) {
+        value = withContext(Dispatchers.IO) { OfficeOld.readPpt(ctx, doc.uri, t.slide) }
+    }
+    SlidesBody(data, doc, t, scale)
+}
+
+@Composable
+private fun SlidesBody(d: List<OfficeXml.SlideContent>?, doc: DocFile, t: L, scale: Float) {
     var loaded by remember { mutableStateOf(false) }
     if (d == null) {
         androidx.compose.runtime.LaunchedEffect(Unit) {
