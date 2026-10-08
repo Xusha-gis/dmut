@@ -13,14 +13,20 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,9 +41,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -119,23 +133,68 @@ object ImageToPdf {
 }
 
 @Composable
-private fun ToolCard(title: String, body: String, t: L, ready: Boolean, busy: Boolean = false, onClick: () -> Unit = {}) {
+private fun ToolCell(
+    title: String,
+    body: String,
+    t: L,
+    badge: String,
+    color: Long,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.6f),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled, onClick = onClick)
+                .padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(color)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(badge, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 8.dp),
+            )
             Text(
                 body,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                textAlign = TextAlign.Center,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp),
             )
-            if (ready) {
-                Button(onClick = onClick, enabled = !busy) { Text(if (busy) t.creating else t.start) }
+            if (!enabled) {
+                Text(
+                    t.soon,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             } else {
-                Text(t.soon, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.outline)
+                Text(
+                    t.start,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
         }
     }
@@ -267,51 +326,79 @@ fun ToolsScreen(vm: AppViewModel, padding: PaddingValues) {
         }
     }
 
-    Column(
-        Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
-    ) {
+    Column(Modifier.fillMaxSize().padding(padding)) {
         ScreenTitle(t.tools)
-        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ToolCard(t.toolsImagePdf, t.toolsImagePdfBody, t, ready = true, busy = busy, onClick = {
-                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            })
-            ToolCard(t.toolsCamera, t.toolsCameraBody, t, ready = true, busy = busy, onClick = {
-                try {
-                    val f = File.createTempFile("scan_", ".jpg", ctx.cacheDir)
-                    val u = FileProvider.getUriForFile(ctx, ctx.packageName + ".provider", f)
-                    photoUri = u
-                    busy = true
-                    camera.launch(u)
-                } catch (e: Exception) {
-                    busy = false
-                    status = t.camFail
-                }
-            })
-            ToolCard(t.toolsMerge, t.toolsMergeBody, t, ready = true, busy = busy, onClick = {
-                mergePicker.launch(arrayOf("application/pdf"))
-            })
-            ToolCard(t.toolsText, t.toolsTextBody, t, ready = true, busy = busy, onClick = {
-                textPicker.launch(arrayOf("text/*"))
-            })
-            // shablon kartasi (ichida mini forma)
-            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(t.toolsTemplates, style = MaterialTheme.typography.titleMedium)
-                    Text(t.toolsTemplatesBody, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp))
-                    if (!showTpl) {
-                        Button(onClick = { showTpl = true }) { Text(t.start) }
-                    } else {
-                        OutlinedTextField(value = cvName, onValueChange = { cvName = it }, label = { Text(t.cvName) }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = cvPhone, onValueChange = { cvPhone = it }, label = { Text(t.cvPhone) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                        OutlinedTextField(value = cvExp, onValueChange = { cvExp = it }, label = { Text(t.cvExp) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), minLines = 3)
-                        Button(onClick = { tplSaver.launch("Rezyume.pdf") }, modifier = Modifier.padding(top = 8.dp)) { Text(t.start) }
-                        TextButton(onClick = { showTpl = false }) { Text("✕") }
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                ToolCell(t.toolsImagePdf, t.toolsImagePdfBody, t, badge = "JPG", color = 0xFF7B61FF, enabled = !busy, onClick = {
+                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                })
+            }
+            item {
+                ToolCell(t.toolsCamera, t.toolsCameraBody, t, badge = "CAM", color = 0xFF0F9D58, enabled = !busy, onClick = {
+                    try {
+                        val f = File.createTempFile("scan_", ".jpg", ctx.cacheDir)
+                        val u = FileProvider.getUriForFile(ctx, ctx.packageName + ".provider", f)
+                        photoUri = u
+                        busy = true
+                        camera.launch(u)
+                    } catch (e: Exception) {
+                        busy = false
+                        status = t.camFail
+                    }
+                })
+            }
+            item {
+                ToolCell(t.toolsMerge, t.toolsMergeBody, t, badge = "PDF", color = 0xFFD64545, enabled = !busy, onClick = {
+                    mergePicker.launch(arrayOf("application/pdf"))
+                })
+            }
+            item {
+                ToolCell(t.toolsText, t.toolsTextBody, t, badge = "TXT", color = 0xFF6B6459, enabled = !busy, onClick = {
+                    textPicker.launch(arrayOf("text/*"))
+                })
+            }
+            item {
+                ToolCell(t.toolsTemplates, t.toolsTemplatesBody, t, badge = "CV", color = 0xFF2B579A, enabled = !busy, onClick = {
+                    showTpl = true
+                })
+            }
+            item {
+                ToolCell(t.editorTitle, t.editorBody, t, badge = "PRO", color = 0xFF8C8574, enabled = false, onClick = {})
+            }
+            item {
+                ToolCell(t.ocrTitle, t.ocrNote, t, badge = "OCR", color = 0xFF8C8574, enabled = false, onClick = {})
+            }
+            if (showTpl) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(t.toolsTemplates, style = MaterialTheme.typography.titleMedium)
+                            OutlinedTextField(value = cvName, onValueChange = { cvName = it }, label = { Text(t.cvName) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                            OutlinedTextField(value = cvPhone, onValueChange = { cvPhone = it }, label = { Text(t.cvPhone) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                            OutlinedTextField(value = cvExp, onValueChange = { cvExp = it }, label = { Text(t.cvExp) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), minLines = 3)
+                            Button(onClick = { tplSaver.launch("Rezyume.pdf") }, modifier = Modifier.padding(top = 8.dp)) { Text(t.start) }
+                            TextButton(onClick = { showTpl = false }) { Text("✕") }
+                        }
                     }
                 }
             }
-            ToolCard(t.editorTitle, t.editorBody, t, ready = false)
-            ToolCard(t.ocrTitle, t.ocrNote, t, ready = false)
-            status?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+            status?.let {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text(it, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            if (busy) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text(t.creating, color = MaterialTheme.colorScheme.primary)
+                }
+            }
         }
     }
 }

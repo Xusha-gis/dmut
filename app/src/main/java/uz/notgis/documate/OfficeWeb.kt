@@ -30,7 +30,8 @@ import kotlinx.coroutines.withContext
  * Katta fayllar (>12 MB) yoki xatoda — native matn ko'rinishiga qaytiladi.
  */
 object OfficeWeb {
-    const val MAX_WEB_BYTES = 12 * 1024 * 1024
+    const val MAX_WEB_BYTES = 8 * 1024 * 1024
+    const val WEB_TIMEOUT_MS = 25000L
 
     private val libCache = HashMap<String, String>()
 
@@ -89,32 +90,48 @@ object OfficeWeb {
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun WebDoc(html: String?, t: L, onFail: () -> Unit) {
+    val ctx = LocalContext.current
     if (html == null) {
+        // Tayyorlanmadi (juda katta fayl yoki o'qilmadi) — darhol matn rejimiga
+        androidx.compose.runtime.LaunchedEffect(Unit) { onFail() }
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
-    var wv by remember { mutableStateOf<WebView?>(null) }
+    // Konversiya tugamasa (katta/sekin fayl) — timeout bilan matn rejimiga qaytish
+    val settled = remember(html) { booleanArrayOf(false) }
+    androidx.compose.runtime.LaunchedEffect(html) {
+        kotlinx.coroutines.delay(OfficeWeb.WEB_TIMEOUT_MS)
+        if (!settled[0]) onFail()
+    }
     Box(Modifier.fillMaxSize()) {
         AndroidView(
-            factory = { ctx ->
-                WebView(ctx).apply {
+            factory = { c ->
+                WebView(c).apply {
                     settings.javaScriptEnabled = true
                     settings.builtInZoomControls = true
                     settings.displayZoomControls = false
                     settings.setSupportZoom(true)
                     settings.loadWithOverviewMode = true
                     settings.useWideViewPort = true
+                    settings.allowFileAccess = true
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView, url: String) {
                             view.evaluateJavascript("document.title") { title ->
-                                if (title != null && title.contains("ERR")) onFail()
+                                if (title != null && title.contains("ERR")) {
+                                    settled[0] = true
+                                    onFail()
+                                } else if (title != null && title.contains("OK")) {
+                                    settled[0] = true
+                                }
                             }
                         }
                     }
-                    loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
-                    wv = this
+                    // Katta HTML satri loadData da kesilishi mumkin — fayl orqali yuklaymiz
+                    val f = java.io.File(c.cacheDir, "office_view.html")
+                    f.writeText(html)
+                    loadUrl("file://${f.absolutePath}")
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -136,14 +153,7 @@ fun DocxWebView(doc: DocFile, t: L, onFail: () -> Unit) {
             }
         }
     }
-    val h = html
-    if (h == null) {
-        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-            TextButton(onClick = onFail) { Text(t.opening) }
-        }
-    } else {
-        WebDoc(h, t, onFail)
-    }
+    WebDoc(html, t, onFail)
 }
 
 @Composable
@@ -160,12 +170,5 @@ fun XlsxWebView(doc: DocFile, t: L, onFail: () -> Unit) {
             }
         }
     }
-    val h = html
-    if (h == null) {
-        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-            TextButton(onClick = onFail) { Text(t.opening) }
-        }
-    } else {
-        WebDoc(h, t, onFail)
-    }
+    WebDoc(html, t, onFail)
 }
