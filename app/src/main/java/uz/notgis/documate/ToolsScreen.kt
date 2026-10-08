@@ -303,29 +303,6 @@ fun ToolsScreen(vm: AppViewModel, padding: PaddingValues) {
         }
     }
 
-    // --- rezyume shabloni ---
-    var showTpl by remember { mutableStateOf(false) }
-    var cvName by remember { mutableStateOf("") }
-    var cvPhone by remember { mutableStateOf("") }
-    var cvExp by remember { mutableStateOf("") }
-    val tplSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { out ->
-        if (out != null) {
-            scope.launch(Dispatchers.IO) {
-                runCatching {
-                    ctx.contentResolver.openOutputStream(out)?.use {
-                        Templates.rezyume(
-                            it,
-                            cvName.ifEmpty { "—" },
-                            cvPhone.ifEmpty { "—" },
-                            cvExp.ifEmpty { "—" },
-                        )
-                    }
-                }
-                withContext(Dispatchers.Main) { status = "Rezyume PDF ${t.saved}." }
-            }
-        }
-    }
-
     Column(Modifier.fillMaxSize().padding(padding)) {
         ScreenTitle(t.tools)
         LazyVerticalGrid(
@@ -365,29 +342,10 @@ fun ToolsScreen(vm: AppViewModel, padding: PaddingValues) {
                 })
             }
             item {
-                ToolCell(t.toolsTemplates, t.toolsTemplatesBody, t, badge = "CV", color = 0xFF2B579A, enabled = !busy, onClick = {
-                    showTpl = true
-                })
-            }
-            item {
                 ToolCell(t.editorTitle, t.editorBody, t, badge = "PRO", color = 0xFF8C8574, enabled = false, onClick = {})
             }
             item {
                 ToolCell(t.ocrTitle, t.ocrNote, t, badge = "OCR", color = 0xFF8C8574, enabled = false, onClick = {})
-            }
-            if (showTpl) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(t.toolsTemplates, style = MaterialTheme.typography.titleMedium)
-                            OutlinedTextField(value = cvName, onValueChange = { cvName = it }, label = { Text(t.cvName) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                            OutlinedTextField(value = cvPhone, onValueChange = { cvPhone = it }, label = { Text(t.cvPhone) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                            OutlinedTextField(value = cvExp, onValueChange = { cvExp = it }, label = { Text(t.cvExp) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), minLines = 3)
-                            Button(onClick = { tplSaver.launch("Rezyume.pdf") }, modifier = Modifier.padding(top = 8.dp)) { Text(t.start) }
-                            TextButton(onClick = { showTpl = false }) { Text("✕") }
-                        }
-                    }
-                }
             }
             status?.let {
                 item(span = { GridItemSpan(maxLineSpan) }) {

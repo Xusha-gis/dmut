@@ -3,7 +3,6 @@ package uz.notgis.documate
 import android.annotation.SuppressLint
 import android.util.Base64
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -23,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 
 /**
  * Haqiqiy (formatlash saqlangan) docx/xlsx ko'rinishi — WebView + offline JS.
@@ -109,10 +109,36 @@ private fun WebDoc(load: WebLoad, onFail: () -> Unit) {
         return
     }
     val html = (load as WebLoad.Ready).html
-    // Konversiya tugamasa (katta/sekin fayl) — timeout bilan matn rejimiga qaytish
+    // onPageFinished bir marta tekshirish yetmaydi — konversiya async tugaydi.
+    // Har soniyada title ni so'rab turamiz (OK/ERR), 25 s da javob bo'lmasa fallback.
     val settled = remember(html) { booleanArrayOf(false) }
-    androidx.compose.runtime.LaunchedEffect(html) {
-        kotlinx.coroutines.delay(OfficeWeb.WEB_TIMEOUT_MS)
+    var wv by remember(html) { mutableStateOf<WebView?>(null) }
+    androidx.compose.runtime.LaunchedEffect(html, wv) {
+        val v = wv ?: return@LaunchedEffect
+        repeat(25) {
+            kotlinx.coroutines.delay(1000)
+            if (settled[0]) return@LaunchedEffect
+            val title = try {
+                kotlinx.coroutines.suspendCancellableCoroutine<String?> { cont ->
+                    try {
+                        v.evaluateJavascript("document.title") { cont.resume(it) }
+                    } catch (e: Exception) {
+                        cont.resume(null)
+                    }
+                }
+            } catch (e: Exception) {
+                null
+            }
+            if (title != null && title.contains("ERR")) {
+                settled[0] = true
+                onFail()
+                return@LaunchedEffect
+            }
+            if (title != null && title.contains("OK")) {
+                settled[0] = true
+                return@LaunchedEffect
+            }
+        }
         if (!settled[0]) onFail()
     }
     Box(Modifier.fillMaxSize()) {
@@ -126,22 +152,11 @@ private fun WebDoc(load: WebLoad, onFail: () -> Unit) {
                     settings.loadWithOverviewMode = true
                     settings.useWideViewPort = true
                     settings.allowFileAccess = true
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageFinished(view: WebView, url: String) {
-                            view.evaluateJavascript("document.title") { title ->
-                                if (title != null && title.contains("ERR")) {
-                                    settled[0] = true
-                                    onFail()
-                                } else if (title != null && title.contains("OK")) {
-                                    settled[0] = true
-                                }
-                            }
-                        }
-                    }
                     // Katta HTML satri loadData da kesilishi mumkin — fayl orqali yuklaymiz
                     val f = java.io.File(c.cacheDir, "office_view.html")
                     f.writeText(html)
                     loadUrl("file://${f.absolutePath}")
+                    wv = this
                 }
             },
             modifier = Modifier.fillMaxSize(),
