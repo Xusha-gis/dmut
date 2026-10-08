@@ -87,18 +87,28 @@ object OfficeWeb {
     }
 }
 
+/** Web yuklash holati: null Boshlanmoqda degani — fail EMAS. */
+private sealed interface WebLoad {
+    data object Loading : WebLoad
+    data class Ready(val html: String) : WebLoad
+    data object Unavailable : WebLoad // juda katta yoki o'qilmadi — matn rejimiga
+}
+
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun WebDoc(html: String?, t: L, onFail: () -> Unit) {
-    val ctx = LocalContext.current
-    if (html == null) {
-        // Tayyorlanmadi (juda katta fayl yoki o'qilmadi) — darhol matn rejimiga
+private fun WebDoc(load: WebLoad, onFail: () -> Unit) {
+    if (load is WebLoad.Unavailable) {
+        // Faqat aniq bo'lmaganda (katta/o'qilmadi) darhol matn rejimiga
         androidx.compose.runtime.LaunchedEffect(Unit) { onFail() }
+        return
+    }
+    if (load is WebLoad.Loading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
+    val html = (load as WebLoad.Ready).html
     // Konversiya tugamasa (katta/sekin fayl) — timeout bilan matn rejimiga qaytish
     val settled = remember(html) { booleanArrayOf(false) }
     androidx.compose.runtime.LaunchedEffect(html) {
@@ -142,33 +152,35 @@ private fun WebDoc(html: String?, t: L, onFail: () -> Unit) {
 @Composable
 fun DocxWebView(doc: DocFile, t: L, onFail: () -> Unit) {
     val ctx = LocalContext.current
-    val html by produceState<String?>(null, doc.uri) {
-        value = withContext(Dispatchers.IO) {
-            try {
-                val b64 = OfficeWeb.fileBase64(ctx, doc) ?: return@withContext null
-                val js = OfficeWeb.assetJs(ctx, "mammoth.min.js")
-                OfficeWeb.docxHtml(js, b64, t.opening)
-            } catch (e: Exception) {
-                null
+    val load by produceState<WebLoad>(WebLoad.Loading, doc.uri) {
+        value = try {
+            val b64 = withContext(Dispatchers.IO) { OfficeWeb.fileBase64(ctx, doc) }
+            if (b64 == null) WebLoad.Unavailable
+            else {
+                val js = withContext(Dispatchers.IO) { OfficeWeb.assetJs(ctx, "mammoth.min.js") }
+                WebLoad.Ready(OfficeWeb.docxHtml(js, b64, t.opening))
             }
+        } catch (e: Exception) {
+            WebLoad.Unavailable
         }
     }
-    WebDoc(html, t, onFail)
+    WebDoc(load, onFail)
 }
 
 @Composable
 fun XlsxWebView(doc: DocFile, t: L, onFail: () -> Unit) {
     val ctx = LocalContext.current
-    val html by produceState<String?>(null, doc.uri) {
-        value = withContext(Dispatchers.IO) {
-            try {
-                val b64 = OfficeWeb.fileBase64(ctx, doc) ?: return@withContext null
-                val js = OfficeWeb.assetJs(ctx, "xlsx.full.min.js")
-                OfficeWeb.xlsxHtml(js, b64, t.opening)
-            } catch (e: Exception) {
-                null
+    val load by produceState<WebLoad>(WebLoad.Loading, doc.uri) {
+        value = try {
+            val b64 = withContext(Dispatchers.IO) { OfficeWeb.fileBase64(ctx, doc) }
+            if (b64 == null) WebLoad.Unavailable
+            else {
+                val js = withContext(Dispatchers.IO) { OfficeWeb.assetJs(ctx, "xlsx.full.min.js") }
+                WebLoad.Ready(OfficeWeb.xlsxHtml(js, b64, t.opening))
             }
+        } catch (e: Exception) {
+            WebLoad.Unavailable
         }
     }
-    WebDoc(html, t, onFail)
+    WebDoc(load, onFail)
 }

@@ -12,8 +12,8 @@ android {
         applicationId = "uz.notgis.documate"
         minSdk = 26 // POI java.time API 26+ da native (desugaring siz)
         targetSdk = 35
-        versionCode = 12
-        versionName = "0.7.0"
+        versionCode = 13
+        versionName = "0.7.1"
     }
 
     // CI debug imzo: DEBUG_KEYSTORE bo'lsa shu ishlatiladi (aks holda standart debug kalit).
