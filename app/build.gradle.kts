@@ -16,6 +16,19 @@ android {
         versionName = "0.3.4"
     }
 
+    // CI debug imzo: DEBUG_KEYSTORE bo'lsa shu ishlatiladi (aks holda standart debug kalit).
+    val debugKeystorePath: String? = System.getenv("DEBUG_KEYSTORE")
+    signingConfigs {
+        getByName("debug") {
+            if (debugKeystorePath != null) {
+                storeFile = file(debugKeystorePath)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     // Imzo ma'lumotlari faqat muhit o'zgaruvchilarida bo'lsa ishlatiladi (GitHub Secrets).
     val keystorePath: String? = System.getenv("KEYSTORE_FILE")
     signingConfigs {
