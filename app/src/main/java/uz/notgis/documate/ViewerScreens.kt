@@ -63,7 +63,7 @@ fun ViewerFrame(
 @Composable
 fun TextScreen(vm: AppViewModel, doc: DocFile, onBack: () -> Unit) {
     val ctx = LocalContext.current
-    val st by collectAsStateWithLifecycle(vm.settings)
+    val st by vm.settings.collectAsStateWithLifecycle()
     val t = stringsFor(st.lang)
     val result by produceState<Result<List<String>>?>(null, doc.uri) {
         value = withContext(Dispatchers.IO) {
